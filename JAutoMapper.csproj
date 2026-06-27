@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>JAutoMapperApp</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="JAutoMapper.Tests\**" />
+    <Content Remove="JAutoMapper.Tests\**" />
+    <EmbeddedResource Remove="JAutoMapper.Tests\**" />
+    <None Remove="JAutoMapper.Tests\**" />
+  </ItemGroup>
+
+</Project>

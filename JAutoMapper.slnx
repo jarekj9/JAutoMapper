@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="JAutoMapper.csproj" />
+  <Project Path="JAutoMapper.Tests\JAutoMapper.Tests.csproj" />
+</Solution>
