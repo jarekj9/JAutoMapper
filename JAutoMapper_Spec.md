@@ -252,7 +252,21 @@ public static class MappingProfile
 }
 
 // Program.cs
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddScoped<IUserService, UserService>();
+// Register resolvers so the DI container can create them:
+builder.Services.AddScoped<UserRoleResolver>();
+
+var app = builder.Build();
+
+// Set service provider for DI-based resolvers (used at map time, not registration time).
+JAutoMapper.ServiceProvider = app.Services;
+
+// Register all maps.
 MappingProfile.Register();
+
+app.Run();
 ```
 
 ---
@@ -282,16 +296,24 @@ JAutoMapper.CreateMap<ApplicationUser, UserViewModel>()
 ### DI Support
 
 Resolvers with parameterless constructors work out of the box.  
-For DI (constructor injection), set `JAutoMapper.ResolverFactory` at startup:
+For DI (constructor injection), set `JAutoMapper.ServiceProvider` to the root `IServiceProvider`:
 
 ```csharp
-var serviceProvider = services.BuildServiceProvider();
-JAutoMapper.ResolverFactory = serviceProvider.GetRequiredService;
+var app = builder.Build();
+JAutoMapper.ServiceProvider = app.Services;
 ```
+
+The library uses `IServiceProvider.GetService(Type)` to resolve resolver instances.  
+If resolution fails or returns `null`, it falls back to `Activator.CreateInstance`.
+
+**Service lifetime guidance:** Resolvers (and their dependency chain) should be **Singleton** or **Transient**, not Scoped. Transient is the natural fit — a new resolver instance is created per `Map` call anyway.  
+If a resolver depends on a scoped service (e.g., `DbContext`), either:
+- Resolve it via `IHttpContextAccessor` inside the resolver
+- Or capture a scoped provider at the mapping call site and set `JAutoMapper.ServiceProvider` to it
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `JAutoMapper.ResolverFactory` | `Func<Type, object>?` | `null` (tries `Activator.CreateInstance` fallback) | Creates resolver instances. Set to `serviceProvider.GetRequiredService` for DI. |
+| `JAutoMapper.ServiceProvider` | `IServiceProvider?` | `null` (tries `Activator.CreateInstance` fallback) | Resolves resolver instances from DI. Falls back to `Activator.CreateInstance` on failure. |
 
 ### Resolver Interface
 

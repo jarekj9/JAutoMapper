@@ -11,6 +11,25 @@ public class FullNameResolver : IValueResolver<SimpleSrc, DestWithExtra, object?
         => $"{source.Name} - resolved";
 }
 
+// ── Resolver with constructor injection (DI scenario) ─────────────
+public interface IUserService
+{
+    string GetRole<T>(T user);
+}
+
+public class FakeUserService : IUserService
+{
+    public string GetRole<T>(T user) => "Admin";
+}
+
+public class UserRoleResolver : IValueResolver<SimpleSrc, DestWithExtra, object?>
+{
+    private readonly IUserService _userService;
+    public UserRoleResolver(IUserService userService) => _userService = userService;
+    public object? Resolve(SimpleSrc source, DestWithExtra destination, object? destMember, ResolutionContext context)
+        => _userService.GetRole(source);
+}
+
 // ── Model classes for tests ─────────────────────────────────────
 
     public class SimpleSrc
@@ -452,25 +471,63 @@ public class FullNameResolver : IValueResolver<SimpleSrc, DestWithExtra, object?
         Assert.Equal("Alice - resolved", dest.FullName);
     }
 
+    // Simple IServiceProvider backed by a dictionary (for tests only — avoids building a real DI container)
+    private class MapServiceProvider : IServiceProvider
+    {
+        private readonly Dictionary<Type, object> _services = new();
+        public MapServiceProvider Add<T>(T instance) { _services[typeof(T)] = instance!; return this; }
+        public object? GetService(Type serviceType) =>
+            _services.TryGetValue(serviceType, out var v) ? v : null;
+    }
+
     [Fact]
-    public void ResolverFactory_is_used_when_set()
+    public void ServiceProvider_is_used_when_set()
     {
         JAutoMapper.CreateMap<SimpleSrc, DestWithExtra>()
             .ForMember(d => d.FullName, opt => opt.MapFrom<FullNameResolver>());
 
-        var invoked = false;
-        JAutoMapper.ResolverFactory = type =>
-        {
-            invoked = true;
-            return new FullNameResolver();
-        }!;
+        var sp = new MapServiceProvider().Add(new FullNameResolver());
+        JAutoMapper.ServiceProvider = sp;
 
         var src = new SimpleSrc { Id = Guid.NewGuid(), Name = "DI", Value = 1 };
         var dest = JAutoMapper.Map<SimpleSrc, DestWithExtra>(src)!;
 
-        Assert.True(invoked, "ResolverFactory should have been called");
         Assert.Equal("DI - resolved", dest.FullName);
 
-        JAutoMapper.ResolverFactory = null; // cleanup
+        JAutoMapper.ServiceProvider = null; // cleanup
+    }
+
+    [Fact]
+    public void MapFrom_TResolver_with_parameterized_constructor_via_ServiceProvider()
+    {
+        var userService = new FakeUserService();
+        var sp = new MapServiceProvider().Add<IUserService>(userService)
+                                         .Add(new UserRoleResolver(userService));
+        JAutoMapper.ServiceProvider = sp;
+
+        JAutoMapper.CreateMap<SimpleSrc, DestWithExtra>()
+            .ForMember(d => d.FullName, opt => opt.MapFrom<UserRoleResolver>());
+
+        var src = new SimpleSrc { Id = Guid.NewGuid(), Name = "Alice", Value = 30 };
+        var dest = JAutoMapper.Map<SimpleSrc, DestWithExtra>(src)!;
+
+        Assert.Equal("Admin", dest.FullName);
+
+        JAutoMapper.ServiceProvider = null; // cleanup
+    }
+
+    [Fact]
+    public void Resolver_with_parameterized_ctor_and_no_ServiceProvider_throws_helpful_error()
+    {
+        JAutoMapper.CreateMap<SimpleSrc, DestWithExtra>()
+            .ForMember(d => d.FullName, opt => opt.MapFrom<UserRoleResolver>());
+
+        var src = new SimpleSrc { Id = Guid.NewGuid(), Name = "Alice", Value = 30 };
+
+        var ex = Assert.Throws<MappingException>(() =>
+            JAutoMapper.Map<SimpleSrc, DestWithExtra>(src));
+
+        Assert.Contains("no parameterless constructor", ex.InnerException?.Message);
+        Assert.Contains("ServiceProvider", ex.InnerException?.Message);
     }
 }

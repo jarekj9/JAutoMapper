@@ -25,12 +25,14 @@ public static class JAutoMapper
     private const int MaxRecursionDepth = 32;
 
     /// <summary>
-    /// Factory for creating resolver instances used by <c>MapFrom&lt;TResolver&gt;()</c>.
-    /// If <c>null</c> (default), resolvers are created via <c>new TResolver()</c>.
-    /// Set this to integrate with your DI container, e.g.:
-    /// <c>JAutoMapper.ResolverFactory = type => serviceProvider.GetRequiredService(type);</c>
+    /// Service provider for creating resolver instances used by <c>MapFrom&lt;TResolver&gt;()</c>.
+    /// If <c>null</c> (default), resolvers are created via <c>Activator.CreateInstance</c>
+    /// (requires a parameterless constructor).
+    /// Set this to the root <c>IServiceProvider</c> (<c>app.Services</c>) to integrate with DI.
+    /// Scoped services are handled correctly — a new scope is created per resolution and
+    /// disposed after <c>Resolve</c> completes.
     /// </summary>
-    public static Func<Type, object>? ResolverFactory { get; set; }
+    public static IServiceProvider? ServiceProvider { get; set; }
 
     // ── Public API ──────────────────────────────────────────────────
 
@@ -193,7 +195,7 @@ public static class JAutoMapper
         _constructors.Clear();
         _projections.Clear();
         _classResolverTypes.Clear();
-        ResolverFactory = null;
+        ServiceProvider = null;
     }
 
     // ── Internal helpers ────────────────────────────────────────────
@@ -253,8 +255,8 @@ public static class JAutoMapper
 
     /// <summary>
     /// Called from the compiled delegate at map time. Looks up the class resolver
-    /// for the given property, creates an instance via <see cref="ResolverFactory"/>,
-    /// and invokes its <c>Resolve</c> method using dynamic dispatch.
+    /// for the given property, creates an instance via <see cref="ServiceProvider"/>
+    /// or <c>Activator.CreateInstance</c>, and invokes its <c>Resolve</c> method.
     /// </summary>
     internal static TMember? ResolveWithClassResolver<TSource, TDest, TMember>(
         TSource source, TDest dest, TMember? current, string propName)
@@ -262,19 +264,34 @@ public static class JAutoMapper
         var key = (typeof(TSource), typeof(TDest));
         if (_classResolverTypes.TryGetValue(key, out var dict) && dict.TryGetValue(propName, out var resolverType))
         {
-            var instance = ResolverFactory?.Invoke(resolverType);
+            object? instance = null;
+
+            if (ServiceProvider != null)
+            {
+                try
+                {
+                    instance = ServiceProvider.GetService(resolverType);
+                }
+                catch
+                {
+                    // Resolving a scoped service from root provider throws silently fall through
+                }
+            }
+
             if (instance == null)
             {
-                try { instance = Activator.CreateInstance(resolverType); }
+                try { instance = Activator.CreateInstance(resolverType)!; }
                 catch (MissingMethodException)
                 {
                     throw new InvalidOperationException(
                         $"Resolver '{resolverType.Name}' has no parameterless constructor. " +
-                        $"Set JAutoMapper.ResolverFactory at startup (e.g. ResolverFactory = sp.GetRequiredService).");
+                        $"Register it as Singleton/Transient in DI, or use a scoped provider " +
+                        $"for JAutoMapper.ServiceProvider.");
                 }
             }
+
             var ctx = _resolutionContext ??= new ResolutionContext();
-            return (TMember?)((dynamic)instance!).Resolve(source, dest, current, ctx);
+            return (TMember?)((dynamic)instance).Resolve(source, dest, current, ctx);
         }
         return current;
     }
@@ -363,7 +380,7 @@ public static class JAutoMapper
                 continue;
             }
 
-            // Class resolver (MapFrom<TResolver>) — resolved at runtime via ResolverFactory
+            // Class resolver (MapFrom<TResolver>) — resolved at runtime via ServiceProvider
             if (_classResolverTypes.TryGetValue(key, out var classResolvers)
                 && classResolvers.TryGetValue(destProp.Name, out _))
             {
@@ -493,7 +510,7 @@ public static class JAutoMapper
                 continue;
             }
 
-            // Class resolver (MapFrom<TResolver>) — resolved at runtime via ResolverFactory
+            // Class resolver (MapFrom<TResolver>) — resolved at runtime via ServiceProvider
             if (_classResolverTypes.TryGetValue(key, out var classResolvers)
                 && classResolvers.TryGetValue(destProp.Name, out _))
             {

@@ -3,7 +3,7 @@ namespace JAM;
 /// <summary>
 /// Full-featured value resolver matching AutoMapper's classic pattern.
 /// Implement this and register via <c>ForMember(d => d.Prop, opt => opt.MapFrom&lt;MyResolver&gt;())</c>.
-/// Resolver instances are created through <see cref="JAutoMapper.ResolverFactory"/> (supports DI).
+/// Resolver instances are created through <see cref="JAutoMapper.ServiceProvider"/> (supports DI).
 /// </summary>
 public interface IValueResolver<in TSource, in TDest, TMember>
 {
