@@ -12,4 +12,19 @@ public interface IMemberConfiguration<out TSource, TDest>
     /// The resolver is created via <see cref="JAutoMapper.ServiceProvider"/> (supports DI).
     /// </summary>
     void MapFrom<TResolver>();
+
+    /// <summary>
+    /// Provide a substitute value when the source value is null.
+    /// </summary>
+    void NullSubstitute(object? value);
+
+    /// <summary>
+    /// Only map this member if the condition returns true.
+    /// </summary>
+    void Condition(Func<TSource, TDest, bool> condition);
+
+    /// <summary>
+    /// Preserve the existing destination value during <c>MapInto</c>.
+    /// </summary>
+    void UseDestinationValue();
 }

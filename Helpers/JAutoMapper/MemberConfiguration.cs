@@ -18,4 +18,19 @@ internal class MemberConfiguration<TSource, TDest> : IMemberConfiguration<TSourc
     {
         JAutoMapper.AddClassResolver<TSource, TDest>(MemberName, typeof(TResolver));
     }
+
+    public void NullSubstitute(object? value)
+    {
+        JAutoMapper.SetNullSubstitute<TSource, TDest>(MemberName, value);
+    }
+
+    public void Condition(Func<TSource, TDest, bool> condition)
+    {
+        JAutoMapper.SetCondition<TSource, TDest>(MemberName, condition);
+    }
+
+    public void UseDestinationValue()
+    {
+        JAutoMapper.AddUseDestinationValue<TSource, TDest>(MemberName);
+    }
 }

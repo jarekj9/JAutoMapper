@@ -1,4 +1,5 @@
 using JAM;
+using JAM.Models;
 
 namespace JAM.Tests;
 
@@ -64,6 +65,143 @@ public class UserRoleResolver : IValueResolver<SimpleSrc, DestWithExtra, object?
         public SimpleDest? Inner { get; set; }
     }
 
+    public class SrcWithField
+    {
+        public Guid Id;
+        public string Name = string.Empty;
+        public int Value;
+    }
+
+    public class DestWithField
+    {
+        public Guid Id;
+        public string Name = string.Empty;
+        public int Value;
+    }
+
+    public class SrcWithFieldAndProp
+    {
+        public Guid Id { get; set; }
+        public string Name = string.Empty;
+    }
+
+    public class DestWithFieldAndProp
+    {
+        public Guid Id;
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class EnumSrc
+    {
+        public StatusCode Status { get; set; }
+        public StatusCode? OptionalStatus { get; set; }
+        public int StatusInt { get; set; }
+    }
+
+    public class EnumDest
+    {
+        public int Status { get; set; }
+        public string OptionalStatus { get; set; } = string.Empty;
+        public StatusCode StatusInt { get; set; }
+    }
+
+    public enum StatusCode
+    {
+        OK = 1,
+        Error = 2
+    }
+
+    public class PrimitiveSrc
+    {
+        public int Count { get; set; }
+        public double Amount { get; set; }
+        public Guid Id { get; set; }
+        public DateTime Created { get; set; }
+    }
+
+    public class PrimitiveDest
+    {
+        public long Count { get; set; }
+        public decimal Amount { get; set; }
+        public string Id { get; set; } = string.Empty;
+        public string Created { get; set; } = string.Empty;
+    }
+
+    public class NullableSrc
+    {
+        public int? Value { get; set; }
+    }
+
+    public class NullableDest
+    {
+        public int Value { get; set; }
+    }
+
+    public class ConvertSrc
+    {
+        public string Data { get; set; } = string.Empty;
+    }
+
+    public class ConvertDest
+    {
+        public string Data { get; set; } = string.Empty;
+        public string Extra { get; set; } = string.Empty;
+    }
+
+    public class HookSrc
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class HookDest
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Before { get; set; } = string.Empty;
+        public string After { get; set; } = string.Empty;
+    }
+
+    public class NullSubSrc
+    {
+        public string? Value { get; set; }
+    }
+
+    public class NullSubDest
+    {
+        public string Value { get; set; } = string.Empty;
+    }
+
+    public class CondSrc
+    {
+        public string Name { get; set; } = string.Empty;
+        public bool ShouldMap { get; set; }
+    }
+
+    public class CondDest
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class UdvSrc
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class UdvDest
+    {
+        public string Name { get; set; } = "Existing";
+    }
+
+    public class FlattenSrc
+    {
+        public Address Address { get; set; } = new();
+    }
+
+    public class FlattenDest
+    {
+        public string AddressCity { get; set; } = string.Empty;
+        public string AddressStreet { get; set; } = string.Empty;
+    }
+
     public class SrcWithCollection
     {
         public List<SimpleSrc>? Items { get; set; }
@@ -98,6 +236,30 @@ public class UserRoleResolver : IValueResolver<SimpleSrc, DestWithExtra, object?
         public string Name { get; set; } = string.Empty;
     }
 
+    public class CircularA2
+    {
+        public CircularB2? B { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class CircularADto2
+    {
+        public CircularBDto2? B { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class CircularB2
+    {
+        public CircularA2? A { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class CircularBDto2
+    {
+        public CircularADto2? A { get; set; }
+        public string Name { get; set; } = string.Empty;
+    }
+
     public class SrcWithCtor
     {
         public Guid Id { get; init; }
@@ -113,6 +275,47 @@ public class UserRoleResolver : IValueResolver<SimpleSrc, DestWithExtra, object?
         public string Name { get; set; } = string.Empty;
     }
 
+    public class SrcWithName
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class DestWithNameAndAge
+    {
+        public string Name { get; set; } = string.Empty;
+        public int Age { get; set; }
+    }
+
+    public class BaseSrc
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class DerivedSrc : BaseSrc
+    {
+        public int Age { get; set; }
+    }
+
+    public class BaseDest
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public class DerivedDest : BaseDest
+    {
+        public int Age { get; set; }
+    }
+
+    public class DerivedSrc2 : BaseSrc
+    {
+        public int Age { get; set; }
+    }
+
+    public class DerivedDest2 : BaseDest
+    {
+        public int Age { get; set; }
+    }
+
     // ── Setup / Teardown ────────────────────────────────────────────
 
     public JAutoMapperTests()
@@ -121,6 +324,194 @@ public class UserRoleResolver : IValueResolver<SimpleSrc, DestWithExtra, object?
     }
 
     // ── Tests ───────────────────────────────────────────────────────
+
+    [Fact]
+    public void Property_flattening_maps_nested_property()
+    {
+        JAutoMapper.CreateMap<FlattenSrc, FlattenDest>();
+
+        var src = new FlattenSrc { Address = new Address { City = "Krakow", Street = "Main" } };
+        var dest = JAutoMapper.Map<FlattenSrc, FlattenDest>(src);
+
+        Assert.Equal("Krakow", dest.AddressCity);
+        Assert.Equal("Main", dest.AddressStreet);
+    }
+
+    [Fact]
+    public void Enum_to_int_and_string_conversion()
+    {
+        JAutoMapper.CreateMap<EnumSrc, EnumDest>();
+
+        var src = new EnumSrc { Status = StatusCode.Error, OptionalStatus = StatusCode.OK, StatusInt = 1 };
+        var dest = JAutoMapper.Map<EnumSrc, EnumDest>(src);
+
+        Assert.Equal(2, dest.Status);
+        Assert.Equal("OK", dest.OptionalStatus);
+        Assert.Equal(StatusCode.OK, dest.StatusInt);
+    }
+
+    [Fact]
+    public void Nullable_to_non_nullable_conversion()
+    {
+        JAutoMapper.CreateMap<NullableSrc, NullableDest>();
+
+        var src = new NullableSrc { Value = 42 };
+        var dest = JAutoMapper.Map<NullableSrc, NullableDest>(src);
+
+        Assert.Equal(42, dest.Value);
+    }
+
+    [Fact]
+    public void Numeric_widening_and_guid_datetime_to_string()
+    {
+        JAutoMapper.CreateMap<PrimitiveSrc, PrimitiveDest>();
+
+        var id = Guid.NewGuid();
+        var dt = new DateTime(2024, 1, 15);
+        var src = new PrimitiveSrc { Count = 5, Amount = 3.14, Id = id, Created = dt };
+        var dest = JAutoMapper.Map<PrimitiveSrc, PrimitiveDest>(src);
+
+        Assert.Equal(5L, dest.Count);
+        Assert.Equal(3.14m, dest.Amount);
+        Assert.Equal(id.ToString(), dest.Id);
+        Assert.Equal(dt.ToString(), dest.Created);
+    }
+
+    [Fact]
+    public void ConvertUsing_replaces_auto_mapping()
+    {
+        JAutoMapper.CreateMap<ConvertSrc, ConvertDest>()
+            .ConvertUsing(src => new ConvertDest { Data = src.Data.ToUpper(), Extra = "custom" });
+
+        var src = new ConvertSrc { Data = "hello" };
+        var dest = JAutoMapper.Map<ConvertSrc, ConvertDest>(src);
+
+        Assert.Equal("HELLO", dest.Data);
+        Assert.Equal("custom", dest.Extra);
+    }
+
+    [Fact]
+    public void ConvertUsing_with_AfterMap_still_works()
+    {
+        var afterCalled = false;
+        JAutoMapper.CreateMap<ConvertSrc, ConvertDest>()
+            .ConvertUsing(src => new ConvertDest { Data = src.Data })
+            .AfterMap((_, _) => afterCalled = true);
+
+        var src = new ConvertSrc { Data = "x" };
+        JAutoMapper.Map<ConvertSrc, ConvertDest>(src);
+
+        Assert.True(afterCalled);
+    }
+
+    [Fact]
+    public void BeforeMap_and_AfterMap_both_called()
+    {
+        var beforeCalled = false;
+        var afterCalled = false;
+
+        JAutoMapper.CreateMap<HookSrc, HookDest>()
+            .BeforeMap((src, dest) => { beforeCalled = true; dest.Before = $"before-{src.Name}"; })
+            .AfterMap((src, dest) => { afterCalled = true; dest.After = $"after-{src.Name}"; });
+
+        var src = new HookSrc { Name = "Test" };
+        var dest = JAutoMapper.Map<HookSrc, HookDest>(src);
+
+        Assert.True(beforeCalled);
+        Assert.True(afterCalled);
+        Assert.Equal("before-Test", dest.Before);
+        Assert.Equal("after-Test", dest.After);
+        Assert.Equal("Test", dest.Name);
+    }
+
+    [Fact]
+    public void NullSubstitute_used_when_source_null()
+    {
+        JAutoMapper.CreateMap<NullSubSrc, NullSubDest>()
+            .ForMember(d => d.Value, opt => opt.NullSubstitute("fallback"));
+
+        var src = new NullSubSrc { Value = null };
+        var dest = JAutoMapper.Map<NullSubSrc, NullSubDest>(src);
+
+        Assert.Equal("fallback", dest.Value);
+    }
+
+    [Fact]
+    public void NullSubstitute_not_used_when_source_has_value()
+    {
+        JAutoMapper.CreateMap<NullSubSrc, NullSubDest>()
+            .ForMember(d => d.Value, opt => opt.NullSubstitute("fallback"));
+
+        var src = new NullSubSrc { Value = "real" };
+        var dest = JAutoMapper.Map<NullSubSrc, NullSubDest>(src);
+
+        Assert.Equal("real", dest.Value);
+    }
+
+    [Fact]
+    public void Condition_skips_mapping_when_false()
+    {
+        JAutoMapper.CreateMap<CondSrc, CondDest>()
+            .ForMember(d => d.Name, opt => opt.Condition((src, dest) => src.ShouldMap));
+
+        var src = new CondSrc { Name = "John", ShouldMap = false };
+        var dest = JAutoMapper.Map<CondSrc, CondDest>(src);
+
+        Assert.Equal(string.Empty, dest.Name);
+    }
+
+    [Fact]
+    public void Condition_maps_when_true()
+    {
+        JAutoMapper.CreateMap<CondSrc, CondDest>()
+            .ForMember(d => d.Name, opt => opt.Condition((src, dest) => src.ShouldMap));
+
+        var src = new CondSrc { Name = "John", ShouldMap = true };
+        var dest = JAutoMapper.Map<CondSrc, CondDest>(src);
+
+        Assert.Equal("John", dest.Name);
+    }
+
+    [Fact]
+    public void UseDestinationValue_preserves_existing()
+    {
+        JAutoMapper.CreateMap<UdvSrc, UdvDest>()
+            .ForMember(d => d.Name, opt => opt.UseDestinationValue());
+
+        var src = new UdvSrc { Name = "New" };
+        var existing = new UdvDest { Name = "Existing" };
+
+        JAutoMapper.MapInto(src, existing);
+
+        Assert.Equal("Existing", existing.Name);
+    }
+
+    [Fact]
+    public void Simple_flat_mapping_matching_field_names()
+    {
+        JAutoMapper.CreateMap<SrcWithField, DestWithField>();
+
+        var src = new SrcWithField { Id = Guid.NewGuid(), Name = "Fieldy", Value = 42 };
+        var dest = JAutoMapper.Map<SrcWithField, DestWithField>(src);
+
+        Assert.NotNull(dest);
+        Assert.Equal(src.Id, dest.Id);
+        Assert.Equal(src.Name, dest.Name);
+        Assert.Equal(src.Value, dest.Value);
+    }
+
+    [Fact]
+    public void Mixed_fields_and_properties_mapped()
+    {
+        JAutoMapper.CreateMap<SrcWithFieldAndProp, DestWithFieldAndProp>();
+
+        var src = new SrcWithFieldAndProp { Id = Guid.NewGuid(), Name = "Mixed" };
+        var dest = JAutoMapper.Map<SrcWithFieldAndProp, DestWithFieldAndProp>(src);
+
+        Assert.NotNull(dest);
+        Assert.Equal(src.Id, dest.Id);
+        Assert.Equal(src.Name, dest.Name);
+    }
 
     [Fact]
     public void Simple_flat_mapping_matching_property_names()
@@ -391,6 +782,43 @@ public class UserRoleResolver : IValueResolver<SimpleSrc, DestWithExtra, object?
     }
 
     [Fact]
+    public void PreserveReferences_reuses_mapped_instances()
+    {
+        JAutoMapper.CreateMap<CircularA2, CircularADto2>().PreserveReferences();
+        JAutoMapper.CreateMap<CircularB2, CircularBDto2>().PreserveReferences();
+
+        var a = new CircularA2 { Name = "A" };
+        var b = new CircularB2 { Name = "B" };
+        a.B = b;
+        b.A = a;
+
+        var dto = JAutoMapper.Map<CircularA2, CircularADto2>(a);
+
+        Assert.NotNull(dto);
+        Assert.NotNull(dto.B);
+        Assert.NotNull(dto.B.A);
+        // Because of preserve references, dto.B.A should be the same instance as dto
+        Assert.Same(dto, dto.B.A);
+    }
+
+    [Fact]
+    public void MaxDepth_custom_limit_throws_when_exceeded()
+    {
+        JAutoMapper.CreateMap<CircularA2, CircularADto2>().MaxDepth(2);
+        JAutoMapper.CreateMap<CircularB2, CircularBDto2>().MaxDepth(2);
+
+        var a = new CircularA2 { Name = "A" };
+        var b = new CircularB2 { Name = "B" };
+        a.B = b;
+        b.A = a;
+
+        var ex = Assert.Throws<MappingException>(() =>
+            JAutoMapper.Map<CircularA2, CircularADto2>(a));
+
+        Assert.Contains("depth > 2", ex.Message);
+    }
+
+    [Fact]
     public void Convenience_overload_Map_TDest_object()
     {
         JAutoMapper.CreateMap<SimpleSrc, SimpleDest>();
@@ -456,6 +884,131 @@ public class UserRoleResolver : IValueResolver<SimpleSrc, DestWithExtra, object?
 
         Assert.Single(projected);
         Assert.Null(projected[0].Extra); // Ignored — remains default
+    }
+
+    [Fact]
+    public void ProjectTo_flattened_property()
+    {
+        JAutoMapper.CreateMap<Address, AddressDto>();
+        JAutoMapper.CreateMap<FlattenSrc, FlattenDest>();
+
+        var data = new List<FlattenSrc>
+        {
+            new() { Address = new Address { City = "Krakow", Street = "Main" } }
+        }.AsQueryable();
+
+        var projected = data.ProjectTo<FlattenSrc, FlattenDest>().ToList();
+
+        Assert.Single(projected);
+        Assert.Equal("Krakow", projected[0].AddressCity);
+        Assert.Equal("Main", projected[0].AddressStreet);
+    }
+
+    [Fact]
+    public void ProjectTo_nested_complex_object()
+    {
+        JAutoMapper.CreateMap<SimpleSrc, SimpleDest>();
+        JAutoMapper.CreateMap<NestedSrc, NestedDest>();
+
+        var data = new List<NestedSrc>
+        {
+            new() { Inner = new SimpleSrc { Id = Guid.NewGuid(), Name = "Alpha", Value = 10 } }
+        }.AsQueryable();
+
+        var projected = data.ProjectTo<NestedSrc, NestedDest>().ToList();
+
+        Assert.Single(projected);
+        Assert.NotNull(projected[0].Inner);
+        Assert.Equal("Alpha", projected[0].Inner!.Name);
+        Assert.Equal(10, projected[0].Inner.Value);
+    }
+
+    [Fact]
+    public void ProjectTo_with_conversion()
+    {
+        JAutoMapper.CreateMap<EnumSrc, EnumDest>();
+
+        var data = new List<EnumSrc>
+        {
+            new() { Status = StatusCode.Error, OptionalStatus = StatusCode.OK, StatusInt = 1 }
+        }.AsQueryable();
+
+        var projected = data.ProjectTo<EnumSrc, EnumDest>().ToList();
+
+        Assert.Single(projected);
+        Assert.Equal(2, projected[0].Status);
+        Assert.Equal("OK", projected[0].OptionalStatus);
+        Assert.Equal(StatusCode.OK, projected[0].StatusInt);
+    }
+
+    [Fact]
+    public void ProjectTo_nested_object_null_source()
+    {
+        JAutoMapper.CreateMap<SimpleSrc, SimpleDest>();
+        JAutoMapper.CreateMap<NestedSrc, NestedDest>();
+
+        var data = new List<NestedSrc>
+        {
+            new() { Inner = null }
+        }.AsQueryable();
+
+        var projected = data.ProjectTo<NestedSrc, NestedDest>().ToList();
+
+        Assert.Single(projected);
+        Assert.Null(projected[0].Inner);
+    }
+
+    [Fact]
+    public void ProjectTo_custom_lambda_resolver()
+    {
+        JAutoMapper.CreateMap<SimpleSrc, DestWithExtra>()
+            .ForMember(d => d.FullName, s => $"{s.Name} - {s.Value}");
+
+        var data = new List<SimpleSrc>
+        {
+            new() { Id = Guid.NewGuid(), Name = "Alpha", Value = 10 }
+        }.AsQueryable();
+
+        var projected = data.ProjectTo<SimpleSrc, DestWithExtra>().ToList();
+
+        Assert.Single(projected);
+        Assert.Equal("Alpha - 10", projected[0].FullName);
+    }
+
+    [Fact]
+    public void ProjectTo_with_NullSubstitute()
+    {
+        JAutoMapper.CreateMap<NullSubSrc, NullSubDest>()
+            .ForMember(d => d.Value, opt => opt.NullSubstitute("fallback"));
+
+        var data = new List<NullSubSrc>
+        {
+            new() { Value = null },
+            new() { Value = "real" }
+        }.AsQueryable();
+
+        var projected = data.ProjectTo<NullSubSrc, NullSubDest>().ToList();
+
+        Assert.Equal(2, projected.Count);
+        Assert.Equal("fallback", projected[0].Value);
+        Assert.Equal("real", projected[1].Value);
+    }
+
+    [Fact]
+    public void ProjectTo_with_MapFrom_TResolver()
+    {
+        JAutoMapper.CreateMap<SimpleSrc, DestWithExtra>()
+            .ForMember(d => d.FullName, opt => opt.MapFrom<FullNameResolver>());
+
+        var data = new List<SimpleSrc>
+        {
+            new() { Id = Guid.NewGuid(), Name = "Alice", Value = 30 }
+        }.AsQueryable();
+
+        var projected = data.ProjectTo<SimpleSrc, DestWithExtra>().ToList();
+
+        Assert.Single(projected);
+        Assert.Equal("Alice - resolved", projected[0].FullName);
     }
 
     [Fact]
@@ -529,5 +1082,90 @@ public class UserRoleResolver : IValueResolver<SimpleSrc, DestWithExtra, object?
 
         Assert.Contains("no parameterless constructor", ex.InnerException?.Message);
         Assert.Contains("ServiceProvider", ex.InnerException?.Message);
+    }
+
+    [Fact]
+    public void AssertConfigurationIsValid_passes_for_fully_mapped()
+    {
+        JAutoMapper.CreateMap<SimpleSrc, SimpleDest>();
+        JAutoMapper.AssertConfigurationIsValid(); // should not throw
+    }
+
+    [Fact]
+    public void AssertConfigurationIsValid_throws_for_unmapped_member()
+    {
+        JAutoMapper.CreateMap<SrcWithName, DestWithNameAndAge>();
+        var ex = Assert.Throws<InvalidOperationException>(() => JAutoMapper.AssertConfigurationIsValid());
+        Assert.Contains("Age", ex.Message);
+        Assert.Contains(nameof(DestWithNameAndAge), ex.Message);
+    }
+
+    [Fact]
+    public void AssertConfigurationIsValid_passes_when_unmapped_ignored()
+    {
+        JAutoMapper.CreateMap<SrcWithName, DestWithNameAndAge>()
+            .Ignore(d => d.Age);
+        JAutoMapper.AssertConfigurationIsValid(); // should not throw
+    }
+
+    [Fact]
+    public void AssertConfigurationIsValid_passes_for_ConvertUsing()
+    {
+        JAutoMapper.CreateMap<SrcWithName, DestWithNameAndAge>()
+            .ConvertUsing(s => new DestWithNameAndAge { Name = s.Name, Age = 0 });
+        JAutoMapper.AssertConfigurationIsValid(); // should not throw — ConvertUsing handles everything
+    }
+
+    [Fact]
+    public void AssertConfigurationIsValid_passes_for_flattened_property()
+    {
+        JAutoMapper.CreateMap<FlattenSrc, FlattenDest>();
+        JAutoMapper.AssertConfigurationIsValid(); // AddressCity / AddressStreet resolved via flattening
+    }
+
+    [Fact]
+    public void IncludeBase_inherits_base_custom_resolver()
+    {
+        JAutoMapper.CreateMap<BaseSrc, BaseDest>()
+            .ForMember(d => d.Name, s => s.Name.ToUpper());
+        JAutoMapper.CreateMap<DerivedSrc, DerivedDest>()
+            .IncludeBase<BaseSrc, BaseDest>();
+
+        var derived = new DerivedSrc { Name = "alice", Age = 30 };
+        var dto = JAutoMapper.Map<DerivedSrc, DerivedDest>(derived);
+
+        Assert.Equal("ALICE", dto.Name);
+        Assert.Equal(30, dto.Age);
+    }
+
+    [Fact]
+    public void IncludeBase_inherits_base_ignore()
+    {
+        JAutoMapper.CreateMap<BaseSrc, BaseDest>()
+            .Ignore(d => d.Name);
+        JAutoMapper.CreateMap<DerivedSrc2, DerivedDest2>()
+            .IncludeBase<BaseSrc, BaseDest>();
+
+        var derived = new DerivedSrc2 { Name = "alice", Age = 30 };
+        var dto = JAutoMapper.Map<DerivedSrc2, DerivedDest2>(derived);
+
+        Assert.Equal(string.Empty, dto.Name);
+        Assert.Equal(30, dto.Age);
+    }
+
+    [Fact]
+    public void IncludeBase_derived_can_override_base_resolver()
+    {
+        JAutoMapper.CreateMap<BaseSrc, BaseDest>()
+            .ForMember(d => d.Name, s => s.Name.ToUpper());
+        JAutoMapper.CreateMap<DerivedSrc, DerivedDest>()
+            .IncludeBase<BaseSrc, BaseDest>()
+            .ForMember(d => d.Name, s => s.Name.ToLower());
+
+        var derived = new DerivedSrc { Name = "ALICE", Age = 25 };
+        var dto = JAutoMapper.Map<DerivedSrc, DerivedDest>(derived);
+
+        Assert.Equal("alice", dto.Name);
+        Assert.Equal(25, dto.Age);
     }
 }

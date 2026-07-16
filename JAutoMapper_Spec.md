@@ -23,7 +23,9 @@ Single file: `JAutoMapper.cs`. No NuGet, no code generation, no reflection overh
 
 Returns `MapConfig<TSource, TDest>` for fluent chaining.  
 Registers an auto-map that:
-- Maps all public readable properties of `TSource` to matching-name, compatible-type properties of `TDest`
+- Maps all public readable **properties and fields** of `TSource` to matching-name, compatible-type properties/fields of `TDest`
+- Built-in conversions: `enum ↔ int`, `enum ↔ string`, `Nullable<T> ↔ T`, numeric widening, `Guid ↔ string`, `DateTime ↔ string`, `DateTimeOffset ↔ string`
+- Property flattening: `AddressCity` automatically resolves to `Address.City`
 - Recursively maps nested complex objects if a map is registered for those types
 - Handles `null` source gracefully (returns `default`)
 
@@ -48,6 +50,11 @@ JAutoMapper.CreateMap<User, UserDto>()
 | `AfterMap` | `AfterMap((src, dest) => { })` | Hook called after mapping completes |
 | `ReverseMap` | `ReverseMap()` | Auto-register the inverse map (`TDest → TSource`). Returns `MapConfig<TDest, TSource>` for further chaining of the reverse. |
 | `ConstructUsing` | `ConstructUsing(s => new TDest(s.Id))` | Custom constructor instead of `new TDest()` |
+| `ConvertUsing` | `ConvertUsing(s => new TDest { ... })` | Replace auto-map entirely with a custom function (AfterMap still runs) |
+| `BeforeMap` | `BeforeMap((src, dest) => { })` | Hook called before property mapping starts |
+| `NullSubstitute` | `ForMember(d => d.Prop, opt => opt.NullSubstitute("N/A"))` | Use fallback when source value is null |
+| `Condition` | `ForMember(d => d.Prop, opt => opt.Condition((src, dest) => src.Flag))` | Only map member when condition is true |
+| `UseDestinationValue` | `ForMember(d => d.Prop, opt => opt.UseDestinationValue())` | Keep existing destination value in MapInto |
 
 ### 2b. `IMemberConfiguration<TSource, TDest>` — Member Options
 
@@ -119,8 +126,8 @@ JAutoMapper.MapInto(updateDto, existingEntity);
 
 ### 8. `JAutoMapper.ProjectTo<TSource, TDest>(IQueryable<TSource> query)`
 
-Builds a LINQ `Expression`-based projection — no runtime reflection, EF Core compatible.  
-Only maps flat properties (no navigation properties). If a property requires a custom resolver, it is skipped in projection.
+Builds a LINQ `Expression`-based projection — no runtime reflection, EF Core compatible for simple cases.  
+Maps flat properties, simple nested complex objects (1-level recursion), flattened properties, built-in conversions, `NullSubstitute`, `Ignore`, and custom lambda/`MapFrom<TResolver>` resolvers (in-memory queryables only — EF Core will not translate custom resolvers to SQL).
 
 ```csharp
 var dtos = db.Users.ProjectTo<User, UserDto>().ToList();
@@ -225,9 +232,25 @@ JAutoMapper (static)
 ✓ AfterMap hook called
 ✓ ConstructUsing uses custom constructor
 ✓ ProjectTo produces correct IQueryable expression
+✓ ProjectTo maps simple nested complex objects
+✓ ProjectTo null-guard on nested objects
+✓ ProjectTo custom lambda resolver (in-memory)
+✓ ProjectTo NullSubstitute
+✓ ProjectTo MapFrom<TResolver> (in-memory)
+✓ ProjectTo flattened property
+✓ ProjectTo built-in conversions
+✓ ProjectTo skips ignored properties
 ✓ Reset clears all maps
 ✓ Missing map throws InvalidOperationException
 ✓ Circular reference throws MappingException (depth guard)
+✓ Field mapping (public fields alongside properties)
+✓ Built-in enum/nullable/numeric/Guid/DateTime conversions
+✓ ConvertUsing replaces auto-mapping
+✓ Property flattening (Address.City -> AddressCity)
+✓ BeforeMap hook called
+✓ NullSubstitute used when source is null
+✓ Condition skips mapping when false
+✓ UseDestinationValue preserves existing value
 ```
 
 ---

@@ -38,6 +38,13 @@ public class MapConfig<TSource, TDest>
         return this;
     }
 
+    /// <summary>Hook called before property mapping starts.</summary>
+    public MapConfig<TSource, TDest> BeforeMap(Action<TSource, TDest> beforeAction)
+    {
+        JAutoMapper.SetBeforeMap<TSource, TDest>(beforeAction);
+        return this;
+    }
+
     /// <summary>Hook called after mapping completes.</summary>
     public MapConfig<TSource, TDest> AfterMap(Action<TSource, TDest> afterAction)
     {
@@ -88,6 +95,47 @@ public class MapConfig<TSource, TDest>
     public MapConfig<TSource, TDest> ConstructUsing(Func<TSource, TDest> constructor)
     {
         JAutoMapper.SetConstructor<TSource, TDest>(constructor);
+        return this;
+    }
+
+    /// <summary>
+    /// Replace the entire auto-mapping for this pair with a custom converter function.
+    /// AfterMap is still invoked if configured.
+    /// </summary>
+    public MapConfig<TSource, TDest> ConvertUsing(Func<TSource, TDest> converter)
+    {
+        JAutoMapper.SetConvertUsing<TSource, TDest>(converter);
+        return this;
+    }
+
+    /// <summary>
+    /// Preserve references for circular references — reuses already-mapped destination instances
+    /// instead of throwing a <see cref="MappingException"/>.
+    /// </summary>
+    public MapConfig<TSource, TDest> PreserveReferences()
+    {
+        JAutoMapper.SetPreserveReferences<TSource, TDest>();
+        return this;
+    }
+
+    /// <summary>
+    /// Set the maximum recursion depth for this map (default is 32).
+    /// Only applies when <c>PreserveReferences</c> is not set.
+    /// </summary>
+    public MapConfig<TSource, TDest> MaxDepth(int maxDepth)
+    {
+        JAutoMapper.SetMaxDepth<TSource, TDest>(maxDepth);
+        return this;
+    }
+
+    /// <summary>
+    /// Inherit mapping configurations from a base type map.
+    /// When mapping <c>TSource → TDest</c>, also applies ignores, custom resolvers,
+    /// conditions, null substitutes, and class resolvers from <c>TBaseSource → TBaseDest</c>.
+    /// </summary>
+    public MapConfig<TSource, TDest> IncludeBase<TBaseSource, TBaseDest>()
+    {
+        JAutoMapper.AddIncludeBase<TSource, TDest, TBaseSource, TBaseDest>();
         return this;
     }
 
